@@ -248,9 +248,9 @@ while ( $looping ) {
          push( @sAr, $sLn );
 
          $totalVerses++;
-         $shownVerses += $stat{ $k }->[ 0 ];
-         $correctVerses += $stat{ $k }->[ 1 ];
-         $incorrectVerses += $stat{ $k }->[ 2 ];
+         $shownVerses += ( $stat{ $k }->[ 0 ] > 0 ? 1 : 0 );
+         $correctVerses += ( $stat{ $k }->[ 1 ] > 0 ? 1 : 0 );
+         $incorrectVerses += ( $stat{ $k }->[ 2 ] > 0 ? 1 : 0 );
       }
 
       write_file( STATS_TABLE, @sAr );
