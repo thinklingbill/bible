@@ -11,8 +11,8 @@ use Term::ReadKey;
 
 # constants definition
 use constant STATS_FILE => "LEBFlashcards_stats.txt";
-use constant MIN_VERSES => 1;
-use constant MAX_VERSES => 1;
+use constant MIN_VERSES => 2;
+use constant MAX_VERSES => 3;
 use constant SEARCH_TRIES => 8;
 use constant REGUESS_TRY => 3; # if a random number generated is this, try to reguess an earlier miss
 
