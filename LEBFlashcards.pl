@@ -9,7 +9,12 @@ use Data::Dumper;
 use Getopt::Long;
 use Term::ReadKey;
 
-use constant STATS_TABLE => "LEBFlashcards_stats.txt";
+# constants definition
+use constant STATS_FILE => "LEBFlashcards_stats.txt";
+use constant MIN_VERSES => 1;
+use constant MAX_VERSES => 1;
+use constant SEARCH_TRIES => 8;
+use constant REGUESS_TRY => 3; # if a random number generated is this, try to reguess an earlier miss
 
 my @bookCode = (
                 "1 Th"
@@ -17,7 +22,7 @@ my @bookCode = (
                ,"1 Ti"
                ,"2 Ti"
                ,"Titus"
-               ,"Heb"
+#               ,"Heb"
                ,"Jas"
                ,"1 Pe"
                ,"2 Pe"
@@ -25,7 +30,7 @@ my @bookCode = (
                ,"2 Jn"
                ,"3 Jn"
                ,"Jud"
-               ,"Re"
+#               ,"Re"
                );
 
 my @line = read_file( 'LEB.xml' ); 
@@ -43,9 +48,9 @@ my $sessionPercentIncorrect=0;
 my $createStats = 0;
 my %stat;
 
-if ( -e STATS_TABLE ) {
+if ( -e STATS_FILE ) {
    #load the stats
-   my @s = read_file( STATS_TABLE );
+   my @s = read_file( STATS_FILE );
    foreach my $s ( @s ) {
       # parse, storing in associative array
       my @x = split( /\|/, $s );
@@ -144,13 +149,45 @@ foreach my $l ( @line ) {
 
 # generate a random series of verses (provided they haven't already been guessed correctly twice)
 
+# create a place to put verses you need to re-guess
+my @reguessTry; 
+
 my $looping = 1;
+# seed the random number generator
+srand( );
+
 while ( $looping ) {
-   srand();
-   my $vRange = 2 + int rand( 3 );
-   my $r = int rand($#verse+1);
-   # see if any of the verses in this range have already been correctly guessed twice 
-   # stub code - for now just assume we will do each passage
+   my $vRange = MIN_VERSES + int rand( MAX_VERSES );
+
+   my $found = 0;
+   my $tryCount = 0;
+   my $r;
+   while ( !$found && $tryCount < SEARCH_TRIES ) { 
+      $tryCount++;
+      if ( ( ( 1 + int rand( REGUESS_TRY ) ) == REGUESS_TRY ) && $#reguessTry > 0 ) {
+print "***** RETRYING *******";
+ReadMode 'cbreak';
+my $key = ReadKey(0);
+ReadMode 'normal';
+         $r = shift( @reguessTry );
+      } 
+      else {
+         $r = int rand( $#verse + 1 );
+      }
+      # if a verse in this range has already been guessed correctly more than once, keep looking
+
+      my $guessedCorrectlyMoreThanOnce = 0;
+      for ( my $i=0; $i<$vRange; $i++ ) {
+         my $m = $stat{ $verseAddr[ $r ] };
+         if ( @$m[ 1 ] > 1 ) {
+            $guessedCorrectlyMoreThanOnce = 1;
+         } 
+      }
+
+      if ( !$guessedCorrectlyMoreThanOnce ) {
+         $found = 1;
+      }   
+   }
    my $go = 1;
  
    $looping = 0;
@@ -221,6 +258,9 @@ while ( $looping ) {
          print "Incorrect. The correct guess is " . $bookCode[ $correctGuess ] . "\n";
          $sessionPercentIncorrect++;
 
+         
+         push( @reguessTry, $r ); # just the first verse, even if more than one in the range
+
          # store the stats
          for ( my $n=$r; $n < $r + $vRange; $n++ ) {
             my $m = $stat{ $verseAddr[ $n ] };
@@ -253,7 +293,7 @@ while ( $looping ) {
          $incorrectVerses += ( $stat{ $k }->[ 2 ] > 0 ? 1 : 0 );
       }
 
-      write_file( STATS_TABLE, @sAr );
+      write_file( STATS_FILE, @sAr );
 
       # display overall stats
       print "\n";
