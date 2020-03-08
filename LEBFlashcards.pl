@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-my $VERSION="1.01";
+my $VERSION="1.02";
 
 print "Version: $VERSION\n";
 
@@ -13,8 +13,9 @@ use Term::ReadKey;
 use constant STATS_FILE => "LEBFlashcards_stats.txt";
 use constant MIN_VERSES => 2;
 use constant MAX_VERSES => 3;
-use constant SEARCH_TRIES => 8;
+use constant SEARCH_TRIES => 32;
 use constant REGUESS_TRY => 3; # if a random number generated is this, try to reguess an earlier miss
+use constant CHOOSE_BOOK_FIRST => 1; # if set to 1, will pick a random book first. Ensures more even coverage
 
 my @bookCode = (
                 "1 Th"
@@ -22,7 +23,7 @@ my @bookCode = (
                ,"1 Ti"
                ,"2 Ti"
                ,"Titus"
-#               ,"Heb"
+               ,"Heb"
                ,"Jas"
                ,"1 Pe"
                ,"2 Pe"
@@ -30,7 +31,7 @@ my @bookCode = (
                ,"2 Jn"
                ,"3 Jn"
                ,"Jud"
-#               ,"Re"
+               ,"Re"
                );
 
 my @line = read_file( 'LEB.xml' ); 
@@ -156,7 +157,17 @@ my $looping = 1;
 # seed the random number generator
 srand( );
 
+### Note: There's a lot of brute force here. Sorry/not sorry - wrote this 
+### to study for the exam and was under too much of a time crunch to make
+### it efficient
+
 while ( $looping ) {
+
+   my $chosenBookCode = -1; # assume just choose from all
+   if ( CHOOSE_BOOK_FIRST ) { # pick a random book
+      $chosenBookCode =  int rand( $#bookCode + 1 );
+   } 
+
    my $vRange = MIN_VERSES + int rand( MAX_VERSES );
 
    my $found = 0;
@@ -165,15 +176,28 @@ while ( $looping ) {
    while ( !$found && $tryCount < SEARCH_TRIES ) { 
       $tryCount++;
       if ( ( ( 1 + int rand( REGUESS_TRY ) ) == REGUESS_TRY ) && $#reguessTry > 0 ) {
-print "***** RETRYING *******";
-ReadMode 'cbreak';
-my $key = ReadKey(0);
-ReadMode 'normal';
+         print "***** RETRYING *******";
+         ReadMode 'cbreak';
+         my $key = ReadKey(0);
+         ReadMode 'normal';
          $r = shift( @reguessTry );
       } 
       else {
-         $r = int rand( $#verse + 1 );
+         # if we're forcing into the chosen book code, keep looping until you hit a verse for that book
+         my $verseForBookFound = 0;
+         while ( !$verseForBookFound ) {
+            $r = int rand( $#verse + 1 );
+            if ( $chosenBookCode > -1 ) {
+               if ( $verseAddr[ $r ] =~ /$bookCode[ $chosenBookCode ]/ ) {
+                  $verseForBookFound = 1;
+               }
+            }
+            else { # all books welcome
+               $verseForBookFound = 1;
+            }
+         }
       }
+
       # if a verse in this range has already been guessed correctly more than once, keep looking
 
       my $guessedCorrectlyMoreThanOnce = 0;
